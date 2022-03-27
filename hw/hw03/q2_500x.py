@@ -23,37 +23,52 @@ primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67
 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997 ]
 
 
+def calc_comp_time_curve(p_min,p_max,n,x,lamb):
+
+  ps = [p for p in range(p_min,p_max+1)]
+  k = len(primes)
+  lamb = lamb * x # unit communication time
+  total_times = list()
+  for p in ps:
+    total_strike_time = 0.0
+    for prime in primes:
+      total_strike_time += (n/p) / prime
+    # total_strike_time = int(total_strike_time * x)
+    total_strike_time = (total_strike_time * x)
+    total_comm_time = k*(p-1) * lamb
+    total_time = total_comm_time + total_strike_time
+    # print(f'processors: {p}')
+    # print(f'total_strike_time: {total_strike_time}')
+    # print(f'total_comm_time: {total_comm_time}')
+    # print(f'total_time: {total_time}')
+    log = np.asarray([p, total_time])
+    total_times.append(log)
+  total_times = np.asarray(total_times).reshape(-1,2)
+  return total_times
+
+def calc_spdup_curve(times:np.ndarray):
+  return times[0,1]/times[:,1]
+
+
+# lambda = 500X
 p_min = 1 # min processors
 p_max = 32 # max processors
-ps = [p for p in range(p_min,p_max+1)]
 x = 1 # unit striking time
 n = 1000000 # prime number smaller than n
-k = len(primes)
-lamb = 100 * x # unit communication time
-speedups = list()
-for p in ps:
-  total_strike_time = 0.0
-  for prime in primes:
-    total_strike_time += (n/p) / prime
-  # total_strike_time = int(total_strike_time * x)
-  total_strike_time = (total_strike_time * x)
-  total_comm_time = k*(p-1) * lamb
-  total_time = total_comm_time + total_strike_time
-  print(f'processors: {p}')
-  print(f'total_strike_time: {total_strike_time}')
-  print(f'total_comm_time: {total_comm_time}')
-  print(f'total_time: {total_time}')
-  log = np.asarray([p, total_time])
-  speedups.append(log)
+lamb = 500
 
-speedups = np.asarray(speedups).reshape(-1,2)
-speedups[:,1] = speedups[0,1]/speedups[:,1]
+times_500x = calc_comp_time_curve(p_min,p_max,n,x,lamb)
+spdup_500s = calc_spdup_curve(times_500x)
+
+
 nprint('speedups', speedups)
-plt.title("Lamba = 100X")
+plt.title("Lamba = 500X")
 plt.xlabel("number of processors")
 plt.ylabel("speedup")
+plt.xlim(0,p_max)
+plt.ylim(0,p_max/2)
 plt.plot(speedups[:,0], speedups[:,1])
 plt.show()
-
+st()
 
 # EOF

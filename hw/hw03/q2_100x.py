@@ -29,7 +29,7 @@ ps = [p for p in range(p_min,p_max+1)]
 x = 1 # unit striking time
 n = 1000000 # prime number smaller than n
 k = len(primes)
-lamb = 500 * x # unit communication time
+lamb = 100 * x # unit communication time
 speedups = list()
 for p in ps:
   total_strike_time = 0.0
@@ -49,11 +49,14 @@ for p in ps:
 speedups = np.asarray(speedups).reshape(-1,2)
 speedups[:,1] = speedups[0,1]/speedups[:,1]
 nprint('speedups', speedups)
-plt.title("Lamba = 500X")
+plt.title("Lamba = 100X")
 plt.xlabel("number of processors")
 plt.ylabel("speedup")
+plt.xlim(0,p_max)
+plt.ylim(0,p_max/2)
 plt.plot(speedups[:,0], speedups[:,1])
 plt.show()
 st()
+
 
 # EOF
