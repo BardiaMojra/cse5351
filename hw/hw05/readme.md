@@ -3,10 +3,10 @@
 ## MPICH links
 
 [main page](http://www.mpich.org/)
-
 [main page](http://www.mpich.org/)
-[tutorials](https://anl.app.box.com/v/2019-06-21-basic-mpi)
+[installation](https://mpitutorial.com/tutorials/installing-mpich2/)
 [downloads](https://www.mpich.org/downloads/)
+[tutorials](https://anl.app.box.com/v/2019-06-21-basic-mpi)
 [developer documentation](https://wiki.mpich.org/mpich/index.php/Developer_Documentation)
 
 ## TACC and stampede2 links
