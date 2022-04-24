@@ -274,3 +274,9 @@ TSWLatexianTemp*
 
 # Makeindex log files
 *.lpz
+
+# ignore mpich source files 
+./hw/hw05/hydra-4.0.2.tar.gz
+./hw/hw05/mpich-4.0.2.tar.gz
+./hw/hw05/mpich-4.0.2/*
+
