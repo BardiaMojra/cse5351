@@ -8,6 +8,7 @@
 
 ## MPICH links
 
+- [references](https://portal.tacc.utexas.edu/user-guides/stampede2#refs)
 - [main page](http://www.mpich.org/)
 - [main page](http://www.mpich.org/)
 - [installation](https://mpitutorial.com/tutorials/installing-mpich2/)
