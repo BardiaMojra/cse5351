@@ -27,7 +27,15 @@
 This section includes all the material documented so far to run MPI application
 on a local machine.
 
-### Installation
+### Installation From Source
+
+    cd mpich-4.0.2/
+    ./configure --prefix=/home/smerx/git/cse5351/hw/hw05/mpich-install/ --disable-fortran --disable-cxx
+    make; sudo make install
+    export PATH=/home/smerx/git/cse5351/hw/hw05/mpich-install:$PATH
+    mpiexec --version
+
+### Installation Via App Manager
 
 Install MPICH on linux via Debian package manager.
 
@@ -103,11 +111,41 @@ Use the following flags tih
 
 Use SBATCH to assign nodes and tasks and use 'ibrun' to execute binary.
 
-    #SBATCH -N 4
-    #SBATCH -n 4
+    #SBATCH -N 4 # num cores (tasks)
+    #SBATCH -n 1 # num nodes
     ibrun test
 
-To open interactive environment for command line debugging use 'idev'.
+To open an interactive environment for command-line debugging use 'idev'.
 
-    idev -N 4 -n 4 # run on 4 nodes (-N), 1 tasks each (-n)
+    idev -N 4 -n 1 # run on 4 nodes (-N), 1 tasks each (-n)
     ibrun test -o test.out -e test.err
+
+### Environment Setup for MPICH Dev and Debugging
+
+    ssh -X mojra@stampede2.tacc.utexas.edu # use -X for DDT GUI so X11 forwards msgs
+    cd $SCRATCH && cd test
+    module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # load required compilers
+    mpicc  -g -O0 test.c -o test # compile with debug and zero optimization options
+    idev -N 4 -n 1 # run on 4 nodes (-N), 1 tasks each (-n)
+    ddt test
+
+
+    # on window 01
+    ssh -X mojra@stampede2.tacc.utexas.edu # nbug DDT debugger
+    ssh mojra@stampede2.tacc.utexas.edu
+    cd $SCRATCH
+    cd test
+    pwd && ls
+    module load intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7
+    mpicc  test.c -o test
+    mpicc  -g -O0 test.c -o test # nbug
+
+    # on second 02
+    ssh -X mojra@stampede2.tacc.utexas.edu # nbug
+    ssh mojra@stampede2.tacc.utexas.edu
+    cd $SCRATCH
+    cd test
+    pwd && ls
+    idev -N 1 -n 4 -t 0:10:0
+
+### Using idev Development and DDT Debugging Apps
