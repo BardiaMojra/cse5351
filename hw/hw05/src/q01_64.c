@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   MPI_Ibarrier(MPI_COMM_WORLD, &request);
   if(rank == size-1) // just for a cleaner read on terminal, i.e. 100 samples
   {
-    printf("[Proc %d/%d] msg=\"%s\", loop=%d\n",rank,size,msg,i);
+    printf("[Proc %d/%d] msg=\"%s\", \nloop= %d\n",rank,size,msg,i);
   }
   MPI_Finalize();
   return 0;
