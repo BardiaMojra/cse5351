@@ -131,14 +131,15 @@ To open an interactive environment for command-line debugging use 'idev'.
 
 
     # on window 01
-    ssh -X mojra@stampede2.tacc.utexas.edu # nbug DDT debugger
+    ssh -X mojra@stampede2.tacc.utexas.edu # nbug
     ssh mojra@stampede2.tacc.utexas.edu
     cd $SCRATCH
     cd test
     pwd && ls
+    module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # --- nbug
     module load intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7
-    mpicc  test.c -o test
     mpicc  -g -O0 test.c -o test # nbug
+    mpicc  test.c -o test
 
     # on second 02
     ssh -X mojra@stampede2.tacc.utexas.edu # nbug
@@ -146,6 +147,8 @@ To open an interactive environment for command-line debugging use 'idev'.
     cd $SCRATCH
     cd test
     pwd && ls
-    idev -N 1 -n 4 -t 0:10:0
+    idev -N 1 -n 4 -t 0:15:0
+    ddt_skx test # nbug
+    ibrun test
 
 ### Using idev Development and DDT Debugging Apps

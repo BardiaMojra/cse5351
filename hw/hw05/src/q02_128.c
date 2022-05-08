@@ -6,7 +6,7 @@
 
 /* config */
 /* #define MSG "This sentence has a length of 64 characters, xxxxxxxxxxxxxxxx." */
-#define MSG_LEN 64
+#define MSG_LEN 128
 
 int main(int argc, char *argv[])
 {
@@ -32,9 +32,10 @@ int main(int argc, char *argv[])
 
   /* load send buffer */
   for (int i=0; i<size; i++) {
-    sprintf(msg, "message from (%d) to (%d). This message is %d char long.\n",\
+    sprintf(msg, "message from (%d) to (%d). This message is %d char long\
+    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.",\
     rank, i, MSG_LEN);
-    printf(msg);
+    // printf(msg);
     char *ptr =  sendbuf+(i*MSG_LEN);
     strncpy(ptr, msg, MSG_LEN-1);
     sendbuf[(i*MSG_LEN)-1] = '\0';
@@ -49,9 +50,6 @@ int main(int argc, char *argv[])
   while (rank == 0) {
     loop += 1;
     if (request != 0) {
-      printf("all_to_all returned %d\n", status);
-      printf("[[Proc %d/%d]], loop= %d\n",rank,size,loop);
-
       t2 = MPI_Wtime();
       printf( "Elapsed time is %f\n", t2 - t1 );
       fflush(stdout);
