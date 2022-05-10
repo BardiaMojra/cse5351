@@ -41,8 +41,6 @@ int main(int argc, char *argv[])
     for (int j=0; j<ARR_LEN; j++) {
       printf("%3d ", sbuf[(i*ARR_LEN)+j]);
     }
-    printf("\n");
-
     printf("[%2d/%2d] rbuf[%2d]: ", rank, size, i);
     for (int j=0; j<ARR_LEN; j++) {
       printf("%3d ", rbuf[(i*ARR_LEN)+j]);
