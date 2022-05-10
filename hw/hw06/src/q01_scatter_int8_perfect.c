@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
       for (int i=0; i<size; i++) {
         printf("sbuf[(%2d/%2d)<%2d]: ", i, size, rank);
         for (int j=0; j<ARR_LEN; j++) {
-          printf("%3d ", sbuf[(rank*ARR_LEN)+j]);        }
+          printf("%3d ", sbuf[(i*ARR_LEN)+j]);        }
         printf("\n");
       } printf("\n"); fflush(stdout);
 
