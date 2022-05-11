@@ -6,7 +6,7 @@
 
 /* config */
 #define ROOT 0
-#define ARR_LEN 8
+#define ARR_LEN 16
 
 int main(int argc, char *argv[])
 {

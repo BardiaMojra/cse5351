@@ -6,7 +6,7 @@
 
 /* config */
 #define ROOT 0
-#define ARR_LEN 8
+#define ARR_LEN 32
 
 int main(int argc, char *argv[])
 {
@@ -18,8 +18,8 @@ int main(int argc, char *argv[])
   MPI_Request request;
   int arr[ARR_LEN];
   int rbuf[size*ARR_LEN];
-  int *rbuf_ptr;
-  rbuf_ptr = &rbuf;
+  int *rbuf_ptr[size*ARR_LEN];
+  rbuf_ptr = &rbuf[0];
   int sbuf[ARR_LEN];
   memset(rbuf,0,sizeof(rbuf));
   memset(sbuf,0,sizeof(sbuf));

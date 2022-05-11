@@ -19,8 +19,8 @@ int main(int argc, char *argv[])
   int arr[ARR_LEN];
   int rbuf[size*ARR_LEN];
   int *rbuf_ptr;
-  rbuf_ptr = &rbuf;
-  int sbuf[ARR_LEN];
+  rbuf_ptr = &rbuf[0];
+  int sbuf[size*ARR_LEN];
   memset(rbuf,0,sizeof(rbuf));
   memset(sbuf,0,sizeof(sbuf));
   double t1, t2;
@@ -114,6 +114,11 @@ int main(int argc, char *argv[])
       } printf("\n"); fflush(stdout);
     } fflush(stdout);
     MPI_Barrier(MPI_COMM_WORLD);
+  }
+  if (rank == ROOT)
+  {
+    t2 = MPI_Wtime();
+    printf( "Elapsed time:     %f\n", t2-t1);
   }
   MPI_Barrier(MPI_COMM_WORLD);
   fflush(stdout);
