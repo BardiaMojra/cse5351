@@ -40,19 +40,12 @@ int main(int argc, char *argv[])
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&arrLen, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
-  print_arrLen(rank, size, arrLen);
+  /* print_arrLen(rank, size, arrLen); */
 
   int* lBuff = NULL;
   lBuff = (int*) malloc(sizeof(int) * arrLen);
   assert(lBuff != NULL);
   memset(lBuff, 0, arrLen*sizeof(int));
-
-
-  if(rank == ROOT){
-    printf("[%2d/%2d]: local buffers before MPI_Scatter()... \n", rank, size);
-  }
-  print_lBuffs(rank, size, lBuff, arrLen);
-
 
   if(rank == ROOT){
     for (int i=0; i<arrLen*size; i++){
@@ -60,10 +53,13 @@ int main(int argc, char *argv[])
     }
     printf("[%2d/%2d]: global buffer before MPI_Scatter()... \n", rank, size);
     print_buff(rank, size, gBuff, arrLen*size);
+    printf("[%2d/%2d]: local buffers before MPI_Scatter()... \n", rank, size);
+  }
+  print_lBuffs(rank, size, lBuff, arrLen);
+
+  if(rank == ROOT){
     t1 = MPI_Wtime();
   }
-
-  print_lBuffs(rank, size, lBuff, arrLen);
 
   MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Scatter(gBuff, arrLen, MPI_INT, lBuff, arrLen, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -77,9 +73,7 @@ int main(int argc, char *argv[])
     printf("[%2d/%2d]: local buffers after MPI_Scatter()... \n", rank, size);
     free(gBuff);
   }
-
   print_lBuffs(rank, size, lBuff, arrLen);
-
   free(lBuff);
   MPI_Finalize();
   return 0;
@@ -111,7 +105,7 @@ int* create_gBuff(int rank, int size, int* arrLen) {
   scanf("%d", arrLen);
   int* gBuff = (int*) malloc(sizeof(int)*((*arrLen)*size));
   assert(gBuff != NULL);
-  memset(gBuff, 0, size*sizeof(*gBuff));
+  memset(gBuff, 0, sizeof(int)*((*arrLen)*size));
   print_buff(rank, size, gBuff, *arrLen);
   return gBuff;
 }
