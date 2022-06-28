@@ -126,30 +126,25 @@ To open an interactive environment for command-line debugging use 'idev'.
     cd $SCRATCH && cd test
     module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # load required compilers
     mpicc  -g -O0 test.c -o test # compile with debug and zero optimization options
-    idev -N 4 -n 1 # run on 4 nodes (-N), 1 tasks each (-n)
+    idev -N 1 -n 4 # run on 4 nodes (-N), 1 tasks each (-n)
     ddt test
 
 
     # on window 01
-    ssh -X mojra@stampede2.tacc.utexas.edu # nbug
+    # ssh -X mojra@stampede2.tacc.utexas.edu # nbug
     ssh mojra@stampede2.tacc.utexas.edu
     cd $SCRATCH
-    cd test
-    pwd && ls
-    module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # --- nbug
+    # module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # --- nbug
     module load intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7
-    mpicc  -g -O0 test.c -o test # nbug
-    mpicc  test.c -o test
+    mpicc  -g q1s.c -o q1s
 
     # on second 02
-    ssh -X mojra@stampede2.tacc.utexas.edu # nbug
+    # ssh -X mojra@stampede2.tacc.utexas.edu # nbug
     ssh mojra@stampede2.tacc.utexas.edu
     cd $SCRATCH
-    cd test
-    pwd && ls
-    idev -N 1 -n 2 -t 0:15:0
-    ddt_skx test # nbug
-    ibrun test
+    idev -N 1 -n 4 -t 0:15:0
+    #ddt_skx q1s # nbug
+    ibrun q1s
 
 ### Using idev Development and DDT Debugging Apps
 
