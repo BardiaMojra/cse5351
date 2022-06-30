@@ -137,6 +137,7 @@ To open an interactive environment for command-line debugging use 'idev'.
     # module load ddt_skx intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7 # --- nbug
     module load intel/19.1.1 gcc/9.1.0  mvapich2/2.3.7
     mpicc  -g q1s.c -o q1s
+    mpicc  -g q3.c -o q3 -lm -O3
 
     # on second 02
     # ssh -X mojra@stampede2.tacc.utexas.edu # nbug

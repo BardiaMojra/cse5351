@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
   }
 
   int* gBuff = NULL;
-  if (rank == ROOT)
+  if (rank == ROOT) {
     gBuff = create_gBuff(rank, size, &arrLen);
-
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&arrLen, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
