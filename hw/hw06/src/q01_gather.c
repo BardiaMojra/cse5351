@@ -26,11 +26,11 @@ int main(int argc, char *argv[])
   arrLen = rank;
   double t1, t2;
 
-  if (rank == ROOT) {
-    if ((size != 2) && (size != 4) && (size != 8) && (size != 16)) {
+  if ((size != 2) && (size != 4) && (size != 8) && (size != 16)) {
+    if (rank == ROOT)
       printf("\n\nUnsupported number of processors: %d\n\n", size);
-      exit(13);
-    }
+    MPI_Finalize();
+    exit(1);
   }
 
   int* gBuff = NULL;

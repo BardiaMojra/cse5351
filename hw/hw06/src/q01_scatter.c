@@ -20,22 +20,22 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Request request;
+
   int arrLen = 0;
   arrLen = rank;
   double t1, t2;
 
-  if (rank == ROOT) {
-    if ((size != 2) && (size != 4) && (size != 8) && (size != 16)) {
+  if ((size != 2) && (size != 4) && (size != 8) && (size != 16)) {
+    if (rank == ROOT)
       printf("\n\nUnsupported number of processors: %d\n\n", size);
-      exit(13);
-    }
+    MPI_Finalize();
+    exit(1);
   }
 
   int* gBuff = NULL;
-  if (rank == ROOT) {
+  if (rank == ROOT)
     gBuff = create_gBuff(rank, size, &arrLen);
-  }
+
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&arrLen, 1, MPI_INT, ROOT, MPI_COMM_WORLD);

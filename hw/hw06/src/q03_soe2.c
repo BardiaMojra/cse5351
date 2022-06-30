@@ -149,3 +149,45 @@ int main(int argc, char** argv)		{
 
     return 0;
 }
+
+void soe(int s, int leftEnd, int rightEnd, int szLocalSievingArray, int primeIndex, char sievingArray[]) {
+  int offset, prime;
+  int calcOffset(int prime, int leftEnd, int rightEnd);
+  prime = 2*primeIndex+3; /* Sieving prime */
+  if(s == 0) {
+    offset = 2*primeIndex*(primeIndex+3)+3;
+  } else {
+    /* Save some time in proc 0. Might be redundant if
+    the bottleneck is somewhere else */
+    offset = calcOffset(prime, leftEnd, rightEnd);
+  }
+  if(offset != -1) {
+    while(offset < szLocalSievingArray){
+      /* Since we do not need to sieve the even
+      primes we sieve at every double multiple
+      of the sieving prime. */
+      sievingArray[offset] = 0;
+      offset = offset + prime;
+      }
+  }
+} /* end of soe */
+
+int calcOffset(int prime, int leftEnd, int rightEnd){
+  if(leftEnd % prime == 0)
+    return 0;
+  int res = -(leftEnd % prime) + prime;
+  int value = res + leftEnd;
+  if(value > rightEnd) {
+   /** For small n we might skip a whole interval. e.g.
+    * when n=25, p=4 and when sieving with 5 we skip
+    * the second interval.
+    */
+    return -1;
+  }
+  if(value % 2 == 0) {
+    /* We need this to be odd because we only represent odd numbers */
+    return (res+prime)/2;
+  } else {
+    return res/2;
+  }
+} // end of calcOffset
