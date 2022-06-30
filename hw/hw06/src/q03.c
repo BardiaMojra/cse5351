@@ -13,7 +13,11 @@
 #include <string.h>
 #include <assert.h>
 
+/* config */
 #define ROOT 0
+#define PRT_TIME_EN
+#define PRT_COUNT_EN
+#define PRT_PRIMES_EN
 
 char* create_gBuff(int rank, int size, long int* n);
 void prt_buff(int rank, int size, char* buff, long int n);
@@ -133,9 +137,15 @@ int main (int argc, char ** argv) {
   if (rank == ROOT) {
     time += MPI_Wtime();
     printf("[ROOT]: results: n = %d \n", n);
-    printf("    time: %f sec \n", time);
-    printf("    total primes found: %d \n", gCnt);
-    printf("    primes found: \n");
+    #ifdef(PRT_TIME_EN)
+      printf("    time: %f sec \n", time);
+    #endif
+    #ifdef(PRT_COUNT_EN)
+      printf("    total primes found: %d \n", gCnt);
+    #endif
+    #ifdef(PRT_PRIMES_EN)
+      printf("    primes found: \n");
+    #endif
     prt_primes(rank, size, gBuff, n);
     free(gBuff);
   }
