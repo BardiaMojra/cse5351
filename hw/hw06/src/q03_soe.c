@@ -3,14 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BLOCK_FIRST 3 /* first prime */
-#define BLOCK_STEP 2  /* skip odds */
-#define MIN(a, b) ((a) < (b)? (a): (b))
-#define BLOCK_LOW(id, p, n) ((id) * (n) / (p) / BLOCK_STEP)
-#define BLOCK_HIGH(id, p, n) (BLOCK_LOW((id) + 1, p, n) - 1)
-#define BLOCK_SIZE(id, p, n) (BLOCK_LOW((id) + 1, p, n) - BLOCK_LOW((id), p, n))
-#define BLOCK_OWNER(index, p, n) (((p) * ((index) + 1) - 1) / (n))
-#define BLOCK_VALUE_TO_INDEX(val, id, p, n) (val - BLOCK_FIRST) / BLOCK_STEP - BLOCK_LOW(id, p, n - 1)
+#include "macros.h"
+
+
 
 int main(int argc, char** argv)		{
     int     count;                /* local prime count */
@@ -31,7 +26,7 @@ int main(int argc, char** argv)		{
     int     prime_step;
     int     prime_doubled;
     int     sqrt_n;
-    int     prime_multiple;
+    int     primeM; /* prime multiple */
     int     num_per_block;
     int     block_low_value;
     int     block_high_value;
@@ -41,7 +36,6 @@ int main(int argc, char** argv)		{
 
     MPI_Init(&argc, &argv);
 
-    /* start the timer */
     MPI_Barrier(MPI_COMM_WORLD);
     elapsed_time = -MPI_Wtime();
 
@@ -49,7 +43,7 @@ int main(int argc, char** argv)		{
     MPI_Comm_size(MPI_COMM_WORLD, &p);
 
     if (argc != 2)    {
-        if (id == 0) /* parent process */
+        if (id == 0)
             printf("Command line: %s <m>\n", argv[0]);
         MPI_Finalize();
         exit(1);
@@ -57,44 +51,41 @@ int main(int argc, char** argv)		{
 
     n = atoi(argv[1]);
 
-    /*
-     * Figure out this process's share of the array, as well as the
-     * integers represented by the first and last array elements
-     */
-    low_value  = BLOCK_FIRST + BLOCK_LOW(id, p, n - 1)  * BLOCK_STEP;
-    high_value = BLOCK_FIRST + BLOCK_HIGH(id, p, n - 1) * BLOCK_STEP;
-    size       = BLOCK_SIZE(id, p, n - 1);
+    /*  on this proc: calc its array size, low val, and high val */
+    low_value  = BLOCK_FIRST + BLOCK_LOW(id, p, n-1)  * BLOCK_STEP;
+    high_value = BLOCK_FIRST + BLOCK_HIGH(id, p, n-1) * BLOCK_STEP;
+    size       = BLOCK_SIZE(id, p, n-1);
 
     /*
      * bail out if all the primes used for sieving are not all
      * help by process 0
      */
-    proc0_size = (n - 1) / p;
+    proc0_size = (n-1) / p;
 
-    if ((2 + proc0_size) < (int)sqrt((double)n))    {
+    if ((2 + proc0_size) < (int)sqrt((double)n)) {
         if (id == 0) /* parent process */
             printf("Too many processes\n");
         MPI_Finalize();
         exit(1);
-    } /* if */
+    }
 
     /* compute primes from 2 to sqrt(n); */
     sqrt_n = sqrt(n);
     primes = (char*)calloc(sqrt_n + 1, 1);
-    for (prime_multiple = 2;
-         prime_multiple <= sqrt_n;
-         prime_multiple += 2)    {
-        primes[prime_multiple] = 1;
+    for (primeM = 2;
+         primeM <= sqrt_n;
+         primeM += 2)    {
+        primes[primeM] = 1;
     }
 
     for (prime = 3; prime <= sqrt_n; prime += 2)    {
-        if (primes[prime] == 1)
+        if (primes[prime] == 1) {
             continue;
-
-        for (prime_multiple = prime << 1;
-             prime_multiple <= sqrt_n;
-             prime_multiple += prime)    {
-            primes[prime_multiple] = 1;
+        }
+        for (primeM = prime*2;
+             primeM <= sqrt_n;
+             primeM += prime)    {
+            primes[primeM] = 1;
         }
     } /* for */
 
@@ -102,13 +93,9 @@ int main(int argc, char** argv)		{
      * allocate this process' share of the array
      */
     marked = (char*)calloc(size * sizeof(char), 1);
-    if (marked == NULL)    {
-        printf("Cannot allocate enough memory\n");
-        MPI_Finalize();
-        exit(1);
-    } /* if */
+    assert(marked != NULL);
 
-    num_per_block    = 1024 * 1024;
+    num_per_block    = 1024 * 1024; // <------------------------------ why
     block_low_value  = low_value;
     block_high_value = MIN(high_value,
                            low_value + num_per_block * BLOCK_STEP);
@@ -116,42 +103,42 @@ int main(int argc, char** argv)		{
     for (first_index_in_block = 0;
          first_index_in_block < size;
          first_index_in_block += num_per_block)    {
-        for (prime = 3; prime <= sqrt_n; prime++)       {
-            if (primes[prime] == 1)
-                continue;
-            if (prime * prime > block_low_value)   {
-                first = prime * prime;
+      for (prime = 3; prime <= sqrt_n; prime++)       {
+        if (primes[prime] == 1)
+            continue;
+        if (prime * prime > block_low_value)   {
+            first = prime * prime;
+        }
+        else {
+            if (!(block_low_value % prime)) {
+                first = block_low_value;
             }
-           else   {
-                if (!(block_low_value % prime))    {
-                    first = block_low_value;
-                }
-                else    {
-                    first = prime - (block_low_value % prime) +
-                            block_low_value;
-                }
-           }
-
-           /*
-            * optimization - consider only odd multiples
-            *                of the prime number
-            */
-           if ((first + prime) & 1) // is odd
-              first += prime;
-
-           first_value_index = (first - BLOCK_FIRST) / BLOCK_STEP -
-                               BLOCK_LOW(id, p, n - 1);
-           prime_doubled     = prime << 1;
-           prime_step        = prime_doubled / BLOCK_STEP;
-           for (i = first; i <= high_value; i += prime_doubled)   {
-               marked[first_value_index] = 1;
-               first_value_index += prime_step;
-           } /* for */
+            else    {
+                first = prime - (block_low_value % prime) +
+                        block_low_value;
+            }
         }
 
-        block_low_value += num_per_block * BLOCK_STEP;
-        block_high_value = MIN(high_value,
-                          block_high_value + num_per_block * BLOCK_STEP);
+        /*
+        * optimization - consider only odd multiples
+        *                of the prime number
+        */
+        if ((first + prime) & 1) // is odd
+          first += prime;
+
+        first_value_index = (first - BLOCK_FIRST) / BLOCK_STEP -
+                            BLOCK_LOW(id, p, n - 1);
+        prime_doubled     = prime << 1;
+        prime_step        = prime_doubled / BLOCK_STEP;
+        for (i = first; i <= high_value; i += prime_doubled)   {
+            marked[first_value_index] = 1;
+            first_value_index += prime_step;
+        }
+      }
+
+      block_low_value += num_per_block * BLOCK_STEP;
+      block_high_value = MIN(high_value,
+                        block_high_value + num_per_block * BLOCK_STEP);
     } /* for first_index_in_block */
 
 
