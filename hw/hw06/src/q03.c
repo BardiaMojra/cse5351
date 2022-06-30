@@ -50,6 +50,7 @@ int main (int argc, char ** argv) {
 
 
   char* gBuff = NULL;
+  int* gArrLens = NULL;
   if (rank == ROOT){
     if ((2+(n-1/size)) < (int) sqrt((double) n)) {
       if (rank == ROOT) {
@@ -58,14 +59,17 @@ int main (int argc, char ** argv) {
       MPI_Finalize();
       exit(1);
     }
-    gBuff = create_gBuff(rank, size, &n);
+    gBuff = (char*) create_gBuff(rank, size, &n);
+    gArrLens = (int*) calloc(size, sizeof(int));
   }
 
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&n, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+
   MPI_Barrier(MPI_COMM_WORLD);
   lab = "n"; prt_var(rank, size, (long int*)&n, &lab);
+
 
 
 
@@ -76,7 +80,16 @@ int main (int argc, char ** argv) {
   low_val = 2 +(long int)(rank) * (long int)(n-1) / (long int)size;
   hi_val  = 1 +(long int)(rank+1) * (long int)(n-1) / (long int)size;
   len     = hi_val - low_val + 1;
-  arrLen = (int) ceil(n/size);
+
+
+
+	MPI_Gather(&len, 1, MPI_INT, gArrLens, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+  if (rank == ROOT) {
+    maxLen = get_maxArrLen(gArrLens);
+  }
+  //todo
+  MPI_Bcast(arrLen);
+
 
   MPI_Barrier(MPI_COMM_WORLD); // nbug
   lab = "len"; prt_var(rank, size, (long int*)&len, &lab);
@@ -145,8 +158,8 @@ int main (int argc, char ** argv) {
     #endif
     #ifdef(PRT_PRIMES_EN)
       printf("    primes found: \n");
+      prt_primes(rank, size, gBuff, n);
     #endif
-    prt_primes(rank, size, gBuff, n);
     free(gBuff);
   }
   free(marked);
