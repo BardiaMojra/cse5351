@@ -12,19 +12,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
 
 /* config */
 #define ROOT 0
-#define PRT_TIME_EN
-#define PRT_COUNT_EN
-#define PRT_PRIMES_EN
+
 
 char* create_gBuff(int rank, int size, long int* n);
 void prt_buff(int rank, int size, char* buff, long int n);
 void prt_lBuffs(int rank, int size, char* buff, long int n);
 void prt_var(int rank, int size, long int* var, char** lab);
-void prt_primes(int rank, int size, char* gBuff, long int n);
-
+void prt_primes(int rank, int size, char* gBuff, long int n, int arrLen);
+int get_arrLen(int size, long int n);
+int get_len(int rank, int size, long int n);
 
 int main (int argc, char ** argv) {
   int i;
@@ -36,7 +36,7 @@ int main (int argc, char ** argv) {
   int gCnt;
   int first;
   long int hi_val;
-  long int low_val;
+  long int lo_val;
   int rank;
   int size;
   char* marked;
@@ -67,8 +67,8 @@ int main (int argc, char ** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&n, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  lab = "n"; prt_var(rank, size, (long int*)&n, &lab);
+  MPI_Barrier(MPI_COMM_WORLD); //todo remove line
+  lab = "n"; prt_var(rank, size, (long int*)&n, &lab); //todo remove line
 
 
 
@@ -77,25 +77,16 @@ int main (int argc, char ** argv) {
   time = -MPI_Wtime();
 
 
-  low_val = 2 +(long int)(rank) * (long int)(n-1) / (long int)size;
-  hi_val  = 1 +(long int)(rank+1) * (long int)(n-1) / (long int)size;
-  len     = hi_val - low_val + 1;
+  lo_val = (2 +((long int)(rank)   * (n-1)) ) / (long int)size;
+  hi_val = (1 +((long int)(rank+1) * (n-1)) ) / (long int)size;
+  len    = hi_val - lo_val + 1;
+  arrLen = get_arrLen(size, n);
 
+  MPI_Barrier(MPI_COMM_WORLD); //todo remove line
+  lab = "len"; prt_var(rank, size, (long int*)&len, &lab); //todo remove line
 
-
-	MPI_Gather(&len, 1, MPI_INT, gArrLens, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-  if (rank == ROOT) {
-    maxLen = get_maxArrLen(gArrLens);
-  }
-  //todo
-  MPI_Bcast(arrLen);
-
-
-  MPI_Barrier(MPI_COMM_WORLD); // nbug
-  lab = "len"; prt_var(rank, size, (long int*)&len, &lab);
-
-  MPI_Barrier(MPI_COMM_WORLD); // nbug
-  lab = "arrLen"; prt_var(rank, size, (long int*)&arrLen, &lab);
+  MPI_Barrier(MPI_COMM_WORLD); //todo remove line
+  lab = "arrLen"; prt_var(rank, size, (long int*)&arrLen, &lab); //todo remove line
 
 
   marked = (char*) calloc(arrLen, sizeof(char));
@@ -107,17 +98,20 @@ int main (int argc, char ** argv) {
 
   prime = 2;
   do {
-    if (prime * prime > low_val) {
-      first = prime * prime - low_val;
+    if (prime * prime > lo_val) { /* find the first prime multiple in range */
+      first = prime * prime - lo_val;
     } else {
-      if ((low_val % prime) == 0) {
+      if ((lo_val % prime) == 0) {
         first = 0;
       }
-      else first = prime - (low_val % prime);
+      else first = prime - (lo_val % prime);
     }
 
-    for (i = first; i < len; i += prime) {
+    for (i = first; i < len; i += prime) { /* mark prime multiples */
       marked[i] = 1;
+    }
+    for(i = len; i<arrLen; i++) { /* mark pad cells at the end of marked arr */
+       marked[i] = 2;
     }
 
     if (rank == 0) {
@@ -150,16 +144,10 @@ int main (int argc, char ** argv) {
   if (rank == ROOT) {
     time += MPI_Wtime();
     printf("[ROOT]: results: n = %d \n", n);
-    #ifdef(PRT_TIME_EN)
-      printf("    time: %f sec \n", time);
-    #endif
-    #ifdef(PRT_COUNT_EN)
-      printf("    total primes found: %d \n", gCnt);
-    #endif
-    #ifdef(PRT_PRIMES_EN)
-      printf("    primes found: \n");
-      prt_primes(rank, size, gBuff, n);
-    #endif
+    printf("  time: %f sec \n", time);
+    printf("  total primes found: %d \n", gCnt);
+    printf("  primes found: \n");
+    prt_primes(rank, size, gBuff, n, arrLen);
     free(gBuff);
   }
   free(marked);
@@ -199,16 +187,42 @@ char* create_gBuff(int rank, int size, long int* n) {
 }
 
 void prt_var(int rank, int size, long int* var, char** lab) {
-  printf("[%2d/%2d]: %8s: %8d\n", rank, size, *lab, *var); fflush(stdout);
+  printf("[%2d/%2d]: %7s: %6d\n", rank, size, *lab, *var); fflush(stdout);
   return;
 }
 
-void prt_primes(int rank, int size, char* gBuff, long int n) {
-  printf("\n  2 ", rank, size);
-  for (int i=1; i<=n; i++) {
-    if (gBuff[i] == 0) {
-      printf(" %2d ", i);
+void prt_primes(int rank, int size, char* gBuff, long int n, int arrLen) {
+  int a = 2;
+  for (int r=0; r<size; r++) {
+    len = get_len(int rank,  size, n);
+
+    if(gBuff[i] == 0) {
+      printf(" %2d ", a);
+    }
+    if( (gBuff[i] == 0) || (gBuff[i] == 1) ) {
+      a++;
     }
   }fflush(stdout);
   return;
 }
+
+int get_arrLen(int size, long int n) {
+  long int rank   = size - 1;
+  long int lo_val = (2 +((rank)   * (n-1)) ) / (long int)size;
+  long int hi_val = (1 +((rank+1) * (n-1)) ) / (long int)size;
+  long int len    = hi_val - lo_val + 1;
+  assert(len<INT_MAX);
+  return (int)len;
+}
+
+
+int get_len(int rank, int size, long int n) {
+  long int lo_val = (2 +((long int)(rank)   * (n-1)) ) / (long int)size;
+  long int hi_val = (1 +((long int)(rank+1) * (n-1)) ) / (long int)size;
+  long int len    = hi_val - lo_val + 1;
+  assert(len<INT_MAX);
+  return (int)len;
+}
+
+
+/* eof */
