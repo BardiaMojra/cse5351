@@ -1,3 +1,8 @@
+/**
+  @author Bardia Mojra 
+  @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html
+ */
+
 /** sieve1.c finds prime numbers using a parallel/MPI version
  *  of Eratosthenes Sieve.
  * Based on implementation by Quinn

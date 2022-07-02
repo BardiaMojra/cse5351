@@ -1,3 +1,10 @@
+/**
+  @author Bardia Mojra
+  @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html 
+  @link http://mpi.deino.net/mpi_functions/MPI_Cart_shift.html
+*/
+
+
 #include <mpi.h>
 #include <math.h>
 #include <stdio.h>
