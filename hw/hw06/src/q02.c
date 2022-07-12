@@ -25,8 +25,8 @@ void getInput_arr(int rank, int size, int* arr, int len);
 void prt_buff(int rank, int size, int* buff, int len);
 void prt_lBuffs(int rank, int size, int* buff, int len);
 void getInput_shift(int rank, int size, int len, int* stat, int* shift);
-int  get_dest_rank(int rank, int size, int dir);
-void SHIFT(int rank, int size, int len,  int shift);
+int  get_destRank(int rank, int size, int dir);
+void SHIFT(int rank, int size, int* arr, int len, int shift);
 
 int main (int argc, char ** argv) {
   // char* input = NULL;
@@ -44,7 +44,7 @@ int main (int argc, char ** argv) {
   }
   MPI_Bcast(&len, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
   lab = "len"; prt_var(rank, size, &len, &lab); //todo remove line (NBUG)
-  arr = (int*)calloc(len, sizeof(int));
+  arr = (int*) calloc(len, sizeof(int));
   assert(arr != NULL);
   memset(arr, 0, len);
   prt_lBuffs(rank, size, arr, len);
@@ -67,8 +67,7 @@ int main (int argc, char ** argv) {
       lab = "shift"; prt_var(rank, size, &shift, &lab); //todo remove line (NBUG)
 
       prt_lBuffs(rank, size, arr, len);
-      dest = get_dest_rank(rank, size, dir);
-      SHIFT(rank, size, dest, shift); // perform circular SHIFT
+      SHIFT(rank, size, arr, len, shift); // perform circular SHIFT
       prt_lBuffs(rank, size, arr, len);
 
     }
@@ -121,6 +120,7 @@ void prt_lBuffs(int rank, int size, int* buff, int len) {
   return;
 }
 
+/*
 void prt_shift_cmd(int rank, int size, char* cmd, int dir, int disp) {
   MPI_Barrier(MPI_COMM_WORLD);
   if(rank == ROOT) {
@@ -128,9 +128,10 @@ void prt_shift_cmd(int rank, int size, char* cmd, int dir, int disp) {
   } MPI_Barrier(MPI_COMM_WORLD);
   return;
 }
+*/
 
 void prt_var(int rank, int size, int* var, char** lab) {
-
+  printf("[%2d/%2d]: %7s: %6d\n", rank, size, *lab, *var); fflush(stdout);
   return;
 }
 
@@ -145,7 +146,7 @@ void getInput_arrEntries(int rank, int size, int* arr, int len) {
 
 void prt_buff(int rank, int size, int* buff, int len) {
   printf("[%2d/%2d]: ", rank, size); fflush(stdout);
-  for (int j=0; j<len; j++) {
+  for(int j=0; j<len; j++) {
     printf("%2d ", buff[j]); fflush(stdout);
   } printf("\n"); fflush(stdout);
   return;
@@ -184,16 +185,41 @@ void get_userArr(int rank, int size, int* arr, int len) {
   for(int i=0; i<len, i++) {
     printf("[%2d/%2d]: %2d: \n", rank, size, i); fflush(stdout);
     scanf("%d", arr[i]);
-    printf("[%2d/%2d]: %2d: %2d\n", rank, size, i, arr[i]); fflush(stdout);
+    printf("[%2d/%2d]: [%2d]: %2d\n", rank, size, i, arr[i]); fflush(stdout);
   }
   return;
 }
 
 void getInput_shift(int rank, int size, int len, int* stat, int* shift) {
 
+  printf("[%2d/%2d]: enter a shift value: \n", rank, size, i, arr[i]); fflush(stdout);
+  scanf("%d", shift);
+  return;
 }
 
-int  get_dest_rank(int rank, int size, int dir);
-void SHIFT(int rank, int size, int shift);
+int get_destRank(int rank, int size, int shift) {
+  int destRank;
+  if(shift>0) {
+    destRank = rank + 1;
+  } else if(shift<0) {
+    destRank = rank - 1;
+  } else if(shift==0) {
+    destRank = rank;
+  } else {
+    assert(false, "invalid shift value!!\n");
+  }
 
-/* eof */
+
+  lab = "destRank"; prt_var(rank, size, &destRank, &lab); //todo remove line (NBUG)
+  destRank = destRank % size;
+  lab = "destRank"; prt_var(rank, size, &destRank, &lab); //todo remove line (NBUG)
+
+  return destRank;
+}
+void SHIFT(int rank, int size, int* arr, int len, int shift) {
+  dest = get_destRank(rank, size, shift);
+  disp = abs(shift);
+
+}
+
+/* EOF */
