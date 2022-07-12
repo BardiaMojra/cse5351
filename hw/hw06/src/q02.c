@@ -1,6 +1,6 @@
 /**
   @author Bardia Mojra
-  @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html 
+  @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html
   @link http://mpi.deino.net/mpi_functions/MPI_Cart_shift.html
 */
 
@@ -20,7 +20,8 @@
 /* private declarations */
 void get_userInput(int rank, int size, int* len);
 void prt_var(int rank, int size, int* var, char** lab);
-void getInput_arrVals(int rank, int size, int* arr);
+void getInput_arrEntries(int rank, int size, int* arr, int len);
+void getInput_arr(int rank, int size, int* arr, int len);
 void prt_buff(int rank, int size, int* buff, int len);
 void prt_lBuffs(int rank, int size, int* buff, int len);
 void prt_shift_cmd(int rank, int size, char* cmd, int dir, int disp);
@@ -32,7 +33,7 @@ void SHIFT(int rank, int size, int dest, int disp);
 int main (int argc, char ** argv) {
   char* input = NULL;
   char* cmd = NULL; // user input buff -- for shift cmd or exit
-  char* lab = NULL;  //todo NBUG
+  char* lab = NULL; //todo NBUG
   int dir, disp;
   int len = 0;
   int* arr = NULL;
@@ -48,8 +49,10 @@ int main (int argc, char ** argv) {
   assert(arr != NULL);
   memset(arr, 0, len);
   prt_lBuffs(rank, size, arr, len);
-  getInput_arrVals(rank, size, arr);
+  getInput_arrEntries(rank, size, arr, len);
   prt_lBuffs(rank, size, arr, len);
+
+
   input = (char*)calloc(INPUT_LEN, sizeof(char));
   cmd   = (char*)calloc(INPUT_LEN, sizeof(char));
   assert(input != NULL);
@@ -95,7 +98,32 @@ int main (int argc, char ** argv) {
 
 /* private definitions */
 void get_userInput(int rank, int size, int* len) {
+  printf("[%2d/%2d]: <=> [rank/size]\n", rank, size);
+  printf("[%2d/%2d]: number of processors 'size': %d\n", rank, size, size);
+  printf("[%2d/%2d]: note: all arrays will have the same size.\n", rank, size); fflush(stdout);
+  printf("[%2d/%2d]: enter array length: \n", rank, size); fflush(stdout);
+  scanf("%d", len); fflush(stdout);
+  printf("[%2d/%2d]: next, each processor will ask for its array entries.\n", rank, size); fflush(stdout);
+  printf("[%2d/%2d]: note: array entries and the length variable are type int.\n", rank, size); fflush(stdout);
+  return;
+}
 
+
+
+void prt_lBuffs(int rank, int size, int* buff, int len) {
+  for (int i=0; i<size; i++) {
+    if (i==rank) {
+      prt_buff(rank, size, buff, len); fflush(stdout);
+    } MPI_Barrier(MPI_COMM_WORLD);
+  } MPI_Barrier(MPI_COMM_WORLD);
+  return;
+}
+
+void prt_shift_cmd(int rank, int size, char* cmd, int dir, int disp) {
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(rank == ROOT) {
+    printf("[%2d/%2d]: cmd:%s dir:%d  disp:%d \n", rank, size, cmd, dir, disp); fflush(stdout);
+  } MPI_Barrier(MPI_COMM_WORLD);
   return;
 }
 
@@ -104,29 +132,24 @@ void prt_var(int rank, int size, int* var, char** lab) {
   return;
 }
 
-void getInput_arrVals(int rank, int size, int* arr) {
-
+void getInput_arrEntries(int rank, int size, int* arr, int len) {
+  for (int i=0; i<size; i++) {
+    if (i==rank) {
+      getInput_arr(rank, size, arr);
+    } MPI_Barrier(MPI_COMM_WORLD);
+  } MPI_Barrier(MPI_COMM_WORLD);
   return;
 }
 
 void prt_buff(int rank, int size, int* buff, int len) {
-
+  printf("[%2d/%2d]: ", rank, size);
+  for (int j=0; j<len; j++) {
+    printf("%2d ", buff[j]);
+  } printf("\n"); fflush(stdout);
   return;
 }
 
-void prt_lBuffs(int rank, int size, int* buff, int len) {
-
-  return;
-}
-
-void prt_shift_cmd(int rank, int size, char* cmd, int dir, int disp) {
-  MPI_Barrier(MPI_COMM_WORLD);
-  if(rank == ROOT) {
-    printf("[%2d/%2d]: cmd:%s dir:%d  disp:%d \n", rank, size, cmd, dir, disp); fflush(stdout);
-  }
-  MPI_Barrier(MPI_COMM_WORLD);
-  return;
-}
+void getInput_arr(int rank, int size, int* arr, int len);
 
 void prt_inputOptions(int rank, int size);
 void getInput_shift(int rank, int size, char* input, char* cmd, int* dir, int* disp);
