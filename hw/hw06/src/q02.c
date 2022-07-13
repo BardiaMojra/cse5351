@@ -208,18 +208,81 @@ int get_destRank(int rank, int size, int shift) {
   } else {
     assert(false, "invalid shift value!!\n");
   }
-
-
   lab = "destRank"; prt_var(rank, size, &destRank, &lab); //todo remove line (NBUG)
   destRank = destRank % size;
   lab = "destRank"; prt_var(rank, size, &destRank, &lab); //todo remove line (NBUG)
-
   return destRank;
 }
+
+
 void SHIFT(int rank, int size, int* arr, int len, int shift) {
   dest = get_destRank(rank, size, shift);
   disp = abs(shift);
+  MPI_Status status;
 
+  int* sbuf = NULL;
+  int* rbuf = NULL;
+  sbuf = (int*) calloc(disp, sizeof(int));
+  rbuf = (int*) calloc(disp, sizeof(int));
+  assert(sbuf != NULL);
+  assert(rbuf != NULL);
+  memset(sbuf, 0, disp);
+  memset(rbuf, 0, disp);
+
+  prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
+
+  load_sBuf(rank, size, arr, len, sbuf, shift);
+  prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, arr, len);  //todo remove line (NBUG)
+
+  MPI_Sendrecv(sbuf, disp, MPI_INT, dest, 0, rbuf, disp, MPI_INT, rank, \
+    0, MPI_COMM_WORLD, &status);
+
+  prt_lBuffs(rank, size, rbuf, disp);  //todo remove line (NBUG)
+
+  update_arr(rank, size, arr, len, rbuf, shift);
+
+  free(sbuf);
+  free(rbuf);
 }
 
+void load_sBuf(int rank, int size, int* arr, int len, int* sbuf, int shift) {
+
+  disp = abs(shift);
+  int st_idx = 0;
+  if(shift > 0) {
+    st_idx = len - disp;
+  }
+  for(int i = 0; i<disp; i++) {
+    sbuf[i] = arr[st_idx + i];
+  }
+
+  return;
+}
+
+void update_arr() {
+  int* temp = NULL;
+  temp = (int*) calloc(len, sizeof(int));
+  assert(temp != NULL);
+  memset(temp, 0, len);
+
+  if(shift > 0) { // positive shift
+    for(int i=0; i<disp; i++) { // load rbuf to temp
+      temp[i] = rbuf[i];
+    }
+    for(i=disp; i<len; i++) { // load arr to temp
+      temp[i] = arr[i - disp];
+    }
+  } else { // negative shift
+    for(int i=0; i<disp; i++) { // load arr to temp
+      temp[i] = arr[i + disp];
+    }
+    for(i=disp; i<len; i++) { // load rbuf to temp
+      temp[i] = rbuf[i - disp]}
+
+
+  }
+
+  return;
+}
 /* EOF */
