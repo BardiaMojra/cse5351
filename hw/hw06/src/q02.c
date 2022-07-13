@@ -27,6 +27,8 @@ void prt_lBuffs(int rank, int size, int* buff, int len);
 void getInput_shift(int rank, int size, int len, int* stat, int* shift);
 int  get_destRank(int rank, int size, int dir);
 void SHIFT(int rank, int size, int* arr, int len, int shift);
+void update_arr(int rank, int size, int* arr, int len, int* rbuf, int shift);
+
 
 int main (int argc, char ** argv) {
   // char* input = NULL;
@@ -44,6 +46,7 @@ int main (int argc, char ** argv) {
   }
   MPI_Bcast(&len, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
   lab = "len"; prt_var(rank, size, &len, &lab); //todo remove line (NBUG)
+
   arr = (int*) calloc(len, sizeof(int));
   assert(arr != NULL);
   memset(arr, 0, len);
@@ -58,39 +61,19 @@ int main (int argc, char ** argv) {
     if(rank == ROOT) {
       getInput_shift(rank, size, len, &stat, &shift);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+
+    /* MPI_Barrier(MPI_COMM_WORLD); */
     MPI_Bcast(&shift, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-    prt_var
+
+    prt_lBuffs(rank, size, arr, len);
+    lab = "shift"; prt_var(rank, size, &shift, &lab); //todo remove line (NBUG)
+
     MPI_Barrier(MPI_COMM_WORLD);
     if(shift!=0) {
-
-      lab = "shift"; prt_var(rank, size, &shift, &lab); //todo remove line (NBUG)
-
-      prt_lBuffs(rank, size, arr, len);
       SHIFT(rank, size, arr, len, shift); // perform circular SHIFT
       prt_lBuffs(rank, size, arr, len);
-
     }
 
-    if(strcmp(cmd, "shift")) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      if(rank == ROOT) {
-        prt_shift_cmd(rank, size, cmd, dir, disp);
-      }
-
-    }
-    else if(strcmp(cmd, "exit")) {
-      MPI_Barrier(MPI_COMM_WORLD);
-      if(rank == ROOT) {
-        printf("[%2d/%2d]: program will exit...\n", rank, size); fflush(stdout);
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      break;
-    } else {
-      if(rank == ROOT) {
-        printf("[%2d/%2d]: unknown command: %s \n", rank, size, cmd); fflush(stdout);
-      }
-    } // end of if else
   } // end of while(1)
   free(arr);
   MPI_Finalize();
@@ -108,8 +91,6 @@ void get_userInput(int rank, int size, int* len) {
   printf("[%2d/%2d]: note: array entries and the length variable are type int.\n", rank, size); fflush(stdout);
   return;
 }
-
-
 
 void prt_lBuffs(int rank, int size, int* buff, int len) {
   for (int i=0; i<size; i++) {
@@ -169,6 +150,7 @@ void getInput_arr(int rank, int size, int* arr, int len) {
     get_randArr(rank, size, arr, len);
   }
   prt_buff(rank, size, arr, len);
+  free(input);
   return;
 }
 
@@ -191,7 +173,6 @@ void get_userArr(int rank, int size, int* arr, int len) {
 }
 
 void getInput_shift(int rank, int size, int len, int* stat, int* shift) {
-
   printf("[%2d/%2d]: enter a shift value: \n", rank, size, i, arr[i]); fflush(stdout);
   scanf("%d", shift);
   return;
@@ -230,7 +211,6 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
   memset(rbuf, 0, disp);
 
   prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
-
   load_sBuf(rank, size, arr, len, sbuf, shift);
   prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
   prt_lBuffs(rank, size, arr, len);  //todo remove line (NBUG)
@@ -239,7 +219,6 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
     0, MPI_COMM_WORLD, &status);
 
   prt_lBuffs(rank, size, rbuf, disp);  //todo remove line (NBUG)
-
   update_arr(rank, size, arr, len, rbuf, shift);
 
   free(sbuf);
@@ -247,7 +226,6 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
 }
 
 void load_sBuf(int rank, int size, int* arr, int len, int* sbuf, int shift) {
-
   disp = abs(shift);
   int st_idx = 0;
   if(shift > 0) {
@@ -256,16 +234,15 @@ void load_sBuf(int rank, int size, int* arr, int len, int* sbuf, int shift) {
   for(int i = 0; i<disp; i++) {
     sbuf[i] = arr[st_idx + i];
   }
-
   return;
 }
 
-void update_arr() {
+void update_arr(int rank, int size, int* arr, int len, int* rbuf, int shift) {
+  disp = abs(shift);
   int* temp = NULL;
   temp = (int*) calloc(len, sizeof(int));
   assert(temp != NULL);
   memset(temp, 0, len);
-
   if(shift > 0) { // positive shift
     for(int i=0; i<disp; i++) { // load rbuf to temp
       temp[i] = rbuf[i];
@@ -273,16 +250,20 @@ void update_arr() {
     for(i=disp; i<len; i++) { // load arr to temp
       temp[i] = arr[i - disp];
     }
-  } else { // negative shift
-    for(int i=0; i<disp; i++) { // load arr to temp
+  } else if(shift < 0) { // negative shift
+    for(int i=0; i<len-disp; i++) { // load arr to temp
       temp[i] = arr[i + disp];
     }
-    for(i=disp; i<len; i++) { // load rbuf to temp
-      temp[i] = rbuf[i - disp]}
-
-
+    for(i=len-disp; i<len; i++) { // load rbuf to temp
+      temp[i] = rbuf[i - (len - disp)]
+    }
+  } else { // shift == 0
+    return;
   }
-
+  for(i=0; i<len; i++) { // update arr
+      arr[i] = temp[i];
+  }
+  free(temp);
   return;
 }
 /* EOF */
