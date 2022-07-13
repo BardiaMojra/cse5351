@@ -110,13 +110,13 @@ void print_arrLen(int rank, int size, int arrLen) {
   return;
 }
 
-int* create_n_load_lBuffs(int rank, int size, int arrLen) {
+int* create_n_load_lBuffs(int rank, int size, int len) {
   int* lBuff = NULL;
-  lBuff = (int*) malloc(sizeof(int) * arrLen);
+  lBuff = (int*) malloc(sizeof(int) * len);
   assert(lBuff != NULL);
-  memset(lBuff, 0, arrLen*sizeof(int));
-  for (int i=0; i<size; i++) {
-    lBuff[i] = (rank*size) + i;
+  memset(lBuff, 0, len*sizeof(int));
+  for (int i=0; i<len; i++) {  //todo check this, shouldnt it be len instead of size?
+    lBuff[i] = (rank*len) + i;
   }
   return lBuff;
 }
