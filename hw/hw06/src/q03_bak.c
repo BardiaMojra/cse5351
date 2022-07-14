@@ -94,7 +94,6 @@ int main (int argc, char ** argv) {
   if (rank == 0) {
     index = 0;
   }
-
   /* //todo optimization: skip even numbers, cut message array in half */
   prime = 2;
   do {

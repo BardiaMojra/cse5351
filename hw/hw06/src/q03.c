@@ -3,14 +3,6 @@
   @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html
  */
 
-/** sieve1.c finds prime numbers using a parallel/MPI version
- *  of Eratosthenes Sieve.
- * Based on implementation by Quinn
- * Modified by Ryan Holt to correctly handle '-np 1', Fall 2007
- * Modified by Nathan Dykhuis to handle larger ranges, Fall 2009
- * Modified by Bardia Mojra to gather local arrays and print out all primes found. Spring 2022.
- */
-
 #include <mpi.h>
 #include <math.h>
 #include <stdio.h>
@@ -29,12 +21,12 @@ void prt_buff(int rank, int size, char* buff, int len);
 void prt_lBuffs(int rank, int size, char* buff, int n);
 void prt_var(int rank, int size, int* var, char** lab);
 void prt_varOrdered(int rank, int size, int* var, char** lab);
-void prt_primes(int rank, int size, char* gbuf, int n, int lenMX);
 int get_arrLen(int size, int n);
 int get_len(int rank, int size, int n);
-
-void find_primesOrdered(int rank, int size, int n, char* marked) {
-void find_primes(int rank, int size, int n, char* marked) {
+void find_primes(int rank, int size, int n, char* marked);
+void find_primesOrdered(int rank, int size, int n, char* marked);
+void prt_primesOrdered(int rank, int size, int n, char* marked, int lenMX);
+void prt_primes(int rank, int size, int n, char* marked, int lenMX);
 
 int main (int argc, char ** argv) {
   int rank;
@@ -44,14 +36,13 @@ int main (int argc, char ** argv) {
   int prime;
   int cnt; // local num of primes // NBUG
   int gCnt; // global num of primes // NBUG
-  int first;
+  int fPrime;
   int hi_val; // local high val integer
   int lo_val; // local low val integer
   char* marked; // marked as "not a prime" - keep char to reduce comm message size
   double time; // parallel compute time
   int len; // number of assigned local prime numbers
   int lenMX; // length of local array buffer
-  char* gbuf = NULL; // global prime print buffer, keep char (optimization)
 
 #ifdef NBUG
   char* lab = NULL;
@@ -73,23 +64,21 @@ int main (int argc, char ** argv) {
 
 
   if(rank == ROOT) {
-    gbuf = (char*) calloc(n, sizeof(char));
-    assert(gbuf != NULL);  memset(gbuf, 0, n*sizeof(char));
+    /* gbuf = (char*) calloc(n, sizeof(char)); */
+    /* assert(gbuf != NULL);  memset(gbuf, 0, n*sizeof(char)); */
     time = -MPI_Wtime(); // start timer and process
   }
 
-  char* marked = NULL;
   len    = get_len(rank, size, n);
   lenMX  = get_arrLen(size, n);
+
 #ifdef NBUG
   find_primesOrdered(rank, size, n, marked);
 #else // normal
   find_primes(rank, size, n, marked); // --->> calculate prime numbers
 #endif // NBUG
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  prt_lBuffs(rank, size, marked, lenMX);
-	MPI_Gather(marked, lenMX, MPI_CHAR, gbuf, lenMX, MPI_CHAR, ROOT, MPI_COMM_WORLD);
+  prt_primesOrdered(rank, size, n, marked, lenMX);
 
   cnt = 0; // get total count
   for (int i = 2; i < len; i++) {
@@ -110,8 +99,7 @@ int main (int argc, char ** argv) {
     printf("  - format: [ num : local-idx : global-idx : mark ]\n"); fflush(stdout);
 #endif // NBUG
     printf("  - prime numbers found: \n"); fflush(stdout);
-    prt_primes(rank, size, gbuf, n, lenMX);
-    free(gbuf);
+    prt_primes(rank, size, n, marked, lenMX);
   }
   free(marked);
   MPI_Finalize();
@@ -149,31 +137,14 @@ void prt_var(int rank, int size, int* var, char** lab) {
   return;
 }
 
-void prt_primes(int rank, int size, char* gbuf, int n, int lenMX) {
-  int num = 0;
-  for (int r=0; r<size; r++) {
-    int len = get_len(rank, size, n); // get local arr length
-    for(int li=0; li<len; li++) {
-      int gi = (r*lenMX) + li; // get global index
-#ifdef NBUG
-      printf("%2d:%2d:%2d:%2d\n", num, li, gi, gbuf[gi]); fflush(stdout);
-#endif // NBUG
-      if(gbuf[gi] == 0) { // is prime!!
-#ifndef NBUG
-        printf("%3d ", num);
-#endif // NBUG
-        num++;
-      }
-    } printf("\n");
-  } printf("\n"); fflush(stdout);
-  return;
-}
+
 
 int get_loVal(int rank, int size, int n) {
-  return (((2 +((int)(rank) * (n-1))) / (int)size) + 1);
+  return (((2 +((int)(rank) * (n-1))) / (int)size));
 }
+
 int get_hiVal(int rank, int size, int n) {
-  return (((1 +((rank+1) * (n-1))) / (int)size) + 1);
+  return (((1 +((rank+1) * (n-1))) / (int)size));
 }
 
 int get_arrLen(int size, int n) {
@@ -194,17 +165,15 @@ void prt_varOrdered(int rank, int size, int* var, char** lab) {
       prt_var(rank, size, var, lab);
     } MPI_Barrier(MPI_COMM_WORLD);
   } MPI_Barrier(MPI_COMM_WORLD);
-  if(rank == ROOT) {
-     printf("\n"); fflush(stdout);
-  }
+  if(rank == ROOT) { printf("\n"); fflush(stdout); }
   return;
 }
 
 
 void find_primes(int rank, int size, int n, char* marked) {
   int index;
-  int prime;
-  int first;
+  int cPrime; // current prime
+  int fPrime; // first prime in local array
   int lo_val = get_loVal(rank, size, n);
   int hi_val = get_hiVal(rank, size, n);
   int len    = hi_val - lo_val + 1;
@@ -225,40 +194,45 @@ void find_primes(int rank, int size, int n, char* marked) {
     index = 0;
   }
   /* //todo optimization: skip even numbers, cut message array in half */
-  prime = 2;
-  while (prime*prime <= n) {
+  cPrime = 2;
+  while (cPrime*cPrime <= n) {
 
-    lab = "prime"; prt_var(rank, size, &prime, &lab); // NBUG
+    lab = "cPrime"; prt_var(rank, size, &cPrime, &lab); // NBUG
 
-    if (prime*prime > lo_val) { /* find the first prime multiple in range */
-      first = prime * prime - lo_val;
+    if (cPrime*cPrime > lo_val) { /* find the fPrime prime multiple in range */
+      fPrime = cPrime * cPrime - lo_val;
     } else {
-      if ((lo_val % prime) == 0) {
-        first = 0;
+      if ((lo_val % cPrime) == 0) { // not a prime
+        fPrime = 0;
       } else {
-        first = prime - (lo_val % prime);
+        fPrime = cPrime - (lo_val % cPrime); // first prime in local array
       }
     }
 
-    for(int i = first; i < len; i += prime) { /* mark prime multiples */
+    /* lab = "fPrime"; prt_var(rank, size, &fPrime, &lab); // NBUG */
+
+    for(int i = fPrime; i < len; i += cPrime) { /* mark prime multiples */
       marked[i] = 1;
-
-
     }
     for(int i = len; i<lenMX; i++) { /* mark pad cells at the end of marked arr */
       marked[i] = 2;
-
-
     }
     if(rank == 0) {
       while (marked[++index]);
-      prime = index + 2;
+      cPrime = index + 2;
     }
 
+    /*lab = "cPrime"; prt_var(rank, size, &cPrime, &lab); // NBUG */
 
-  } // end of while (prime*prime <= n)
+    if (size > 1) {
+      MPI_Bcast(&cPrime,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+  } // end of while (cPrime*cPrime <= n)
+
+
   return;
 }
+
 
 void find_primesOrdered(int rank, int size, int n, char* marked) {
   for (int i=0; i<size; i++) {
@@ -266,9 +240,37 @@ void find_primesOrdered(int rank, int size, int n, char* marked) {
       find_primes(rank, size, n, marked);
     } MPI_Barrier(MPI_COMM_WORLD);
   } MPI_Barrier(MPI_COMM_WORLD);
-  if(rank == ROOT) {
-     printf("\n"); fflush(stdout);
-  }
+  if(rank == ROOT) { printf("\n"); fflush(stdout); }
+  return;
+}
+
+void prt_primesOrdered(int rank, int size, int n, char* marked, int lenMX) {
+  for (int i=0; i<size; i++) {
+    if (i==rank) {
+      prt_primes(rank, size, n, marked, lenMX);
+    } MPI_Barrier(MPI_COMM_WORLD);
+  } MPI_Barrier(MPI_COMM_WORLD);
+  if(rank == ROOT) { printf("\n"); fflush(stdout); }
+  return;
+}
+
+void prt_primes(int rank, int size, int n, char* marked, int lenMX) {
+  int num = 0;
+  for (int r=0; r<size; r++) {
+    int len = get_len(rank, size, n); // get local arr length
+    for(int li=0; li<len; li++) {
+      int gi = (r*lenMX) + li; // get global index
+#ifdef NBUG
+      printf("%2d:%2d:%2d:%2d\n", num, li, gi, marked[gi]); fflush(stdout);
+#endif // NBUG
+      if(marked[gi] == 0) { // is prime!!
+#ifndef NBUG
+        printf("%3d ", num);
+#endif // NBUG
+        num++;
+      }
+    } printf("\n");
+  } printf("\n"); fflush(stdout);
   return;
 }
 
