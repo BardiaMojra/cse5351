@@ -14,6 +14,7 @@
 #include <time.h>
 
 /* config */
+/*#define NBUG*/
 #define ROOT 0
 #define INPUT_LEN 10 // user input cmd buffer size
 #define RAND_INT_MAX  25 // arbitrary max to make reading easier
@@ -37,7 +38,7 @@ void update_arr(int rank, int size, int* arr, int len, int* rbuf, int shift);
 int get_srcRank(int rank, int size, int shift);
 
 int main (int argc, char ** argv) {
-  char* lab = NULL; //todo NBUG
+  char* lab = NULL; //NBUG
   int len = 0;
   int* arr = NULL;
   int rank, size;
@@ -56,17 +57,16 @@ int main (int argc, char ** argv) {
   memset(arr, 0, len);
   prt_lBuffs(rank, size, arr, len);
 
-
-
-  getInput_arrEntries(rank, size, arr, len); //todo check manual entry
+  getInput_arrEntries(rank, size, arr, len);
   prt_lBuffs(rank, size, arr, len);
-
-
 
   int shift = 0;
   while(1) {
     if(rank == ROOT) {
       getInput_shift(rank, size, &shift);
+      if(abs(shift) > len) {
+        continue;
+      }
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Bcast(&shift, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -75,13 +75,12 @@ int main (int argc, char ** argv) {
       SHIFT(rank, size, arr, len, shift); // perform circular SHIFT
       if(rank == ROOT) {
         lab = "shift"; prt_var(rank, size, &shift, &lab);
-        printf("[%2d/%2d]: shifted local arrays:\n", rank, size); fflush(stdout);
+        printf("[%2d/%2d]: local arrays:\n", rank, size); fflush(stdout);
       }
       prt_lBuffs(rank, size, arr, len);
     } else {
       break;
     }
-
   } // end of while(1)
   if(rank == ROOT) {
     printf("[%2d/%2d]: end of process...\n\n\n", rank, size);
@@ -155,6 +154,7 @@ void prt_buff(int rank, int size, int* buff, int len) {
 void getInput_arr(int rank, int size, int* arr, int len) {
   char* input;
   input = (char*) calloc(10, sizeof(char));
+  assert(input != NULL); memset(input, 0, 10);
   printf("[%2d/%2d]: enter integer entry mode:\n", rank, size); fflush(stdout);
   printf("  - 'rand' for random\n"); fflush(stdout);
   printf("  - 'ord' for ordered\n"); fflush(stdout);
@@ -174,7 +174,6 @@ void getInput_arr(int rank, int size, int* arr, int len) {
     printf("[%2d/%2d]: will generate ordered entries.\n", rank, size); fflush(stdout);
     get_ordArr(rank, size, arr, len);
   }
-  /* prt_buff(rank, size, arr, len); */
   free(input);
   return;
 }
@@ -197,17 +196,19 @@ void get_randArr(int rank, int size, int* arr, int len) {
   return;
 }
 
-void get_userArr(int rank, int size, int* arr, int len) { //todo work on this.
-
-  printf("[%2d/%2d]: manual int entry: \n", rank, size); fflush(stdout);
+void get_userArr(int rank, int size, int* arr, int len) {
+  int inInt;
   printf("[%2d/%2d]: manual int entry: \n", rank, size); fflush(stdout);
   for(int i=0; i<len; i++) {
-    scanf("%s", input);
+    printf("[%2d/%2d]: enter an integer.. \n", rank, size); fflush(stdout);
+    scanf("%d", &inInt);
+    arr[i] = inInt;
   }
   return;
 }
 
 void getInput_shift(int rank, int size, int* shift) {
+  printf("[%2d/%2d]: note: shift magnitude cannot be greater than local array length!\n", rank, size); fflush(stdout);
   printf("[%2d/%2d]: note: enter '0' to exit! \n", rank, size); fflush(stdout);
   printf("[%2d/%2d]: enter a shift value: \n", rank, size); fflush(stdout);
   scanf("%d", shift);
@@ -224,19 +225,37 @@ int get_destRank(int rank, int size, int shift) {
     dest = rank - 1;
     if(dest<0) {
       dest += size;
-      assert(rank==ROOT && "none root process has dest set to max rank!\n\n");
+      assert((rank==ROOT) && "none root process has dest set to max rank!\n\n");
     }
-  } else if(shift==0) { //
-    dest = rank;
-    assert(0 && "test.... 0 ..!!\n\n");
-    assert(1 && "test.... 1 ..!!\n\n");
-
   } else {
     assert(0 && "invalid shift value!!\n\n");
   }
-  char* lab = NULL; //todo NBUG
-  lab = "dest"; prt_varOrdered(rank, size, &dest, &lab); //todo remove line (NBUG)
+#ifdef NBUG
+  char* lab = NULL; // NBUG
+  lab = "dest"; prt_varOrdered(rank, size, &dest, &lab); // NBUG
+#endif // NBUG
   return dest;
+}
+
+int get_srcRank(int rank, int size, int shift) {
+  int src;
+  if(shift>0) { // right shift
+    src = rank - 1;
+    if(src<0) {
+      src += size;
+      assert(rank==ROOT && "none root process has src set to max rank!\n\n");
+    }
+  } else if(shift<0) { // left shift
+    src = rank + 1;
+    src = src % size;
+  } else {
+    assert(0 && "invalid shift value!!\n\n");
+  }
+#ifdef NBUG
+  char* lab = NULL;
+  lab = "src"; prt_varOrdered(rank, size, &src, &lab); // NBUG
+#endif // NBUG
+  return src;
 }
 
 void SHIFT(int rank, int size, int* arr, int len, int shift) {
@@ -252,12 +271,12 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
 
   load_sBuf(rank, size, arr, len, sbuf, shift);
 
+#ifdef NBUG
   if(rank == ROOT) { printf("[%2d/%2d]: sbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, sbuf, disp);  //NBUG
   if(rank == ROOT) { printf("[%2d/%2d]: rbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, rbuf, disp);  //todo remove line (NBUG)
-  if(rank == ROOT) { printf("[%2d/%2d]: arr: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, arr, len);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, rbuf, disp);  //NBUG
+#endif // NBUG
 
   if((rank%2) == 0) { // even ranks send
     MPI_Send(sbuf, disp, MPI_INT, dest, 0, MPI_COMM_WORLD);
@@ -265,10 +284,14 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
     MPI_Recv(rbuf, disp, MPI_INT, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   }
 
+#ifdef NBUG
+  if(rank == ROOT) { printf("[%2d/%2d]: even sent, odd recvd: \n", \
+    rank, size); fflush(stdout);}
   if(rank == ROOT) { printf("[%2d/%2d]: sbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, sbuf, disp);  //NBUG
   if(rank == ROOT) { printf("[%2d/%2d]: rbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, rbuf, disp);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, rbuf, disp);  //NBUG
+#endif // NBUG
 
   if((rank%2) == 1) { // odd ranks send
     MPI_Send(sbuf, disp, MPI_INT, dest, 0, MPI_COMM_WORLD);
@@ -278,17 +301,17 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
 
   update_arr(rank, size, arr, len, rbuf, shift); // update local arr
 
+#ifdef NBUG
   if(rank == ROOT) { printf("[%2d/%2d]: post-update: \n", rank, size); fflush(stdout);}
   if(rank == ROOT) { printf("[%2d/%2d]: sbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, sbuf, disp);  //todo remove line (NBUG)
+  prt_lBuffs(rank, size, sbuf, disp);  //NBUG
   if(rank == ROOT) { printf("[%2d/%2d]: rbuf: \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, rbuf, disp);  //todo remove line (NBUG)
-
-  if(rank == ROOT){ printf("[%2d/%2d]: arr (updated): \n", rank, size); fflush(stdout);}
-  prt_lBuffs(rank, size, arr, len);
+  prt_lBuffs(rank, size, rbuf, disp);  //NBUG
+#endif // NBUG
 
   free(sbuf);
   free(rbuf);
+  return;
 }
 
 void load_sBuf(int rank, int size, int* arr, int len, int* sbuf, int shift) {
@@ -333,22 +356,4 @@ void update_arr(int rank, int size, int* arr, int len, int* rbuf, int shift) {
   return;
 }
 
-int get_srcRank(int rank, int size, int shift) {
-  int src;
-  if(shift>0) { // right shift
-    src = rank - 1;
-    if(src<0) {
-      src += size;
-      assert(rank==ROOT && "none root process has src set to max rank!\n\n");
-    }
-  } else if(shift<0) { // left shift
-    src = rank + 1;
-    src = src % size;
-  } else {
-    assert(0 && "invalid shift value!!\n\n");
-  }
-  char* lab = NULL; //todo NBUG
-  lab = "src"; prt_varOrdered(rank, size, &src, &lab); //todo remove line (NBUG)
-  return src;
-}
 /* EOF */
