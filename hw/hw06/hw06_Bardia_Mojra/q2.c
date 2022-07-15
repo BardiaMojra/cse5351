@@ -1,10 +1,15 @@
 /**
-  @author Bardia Mojra
-  @date 07/13/2022
-  @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html
-  @link http://mpi.deino.net/mpi_functions/MPI_Cart_shift.html
-*/
-
+ * @file q2.c
+ * @author Bardia Mojra
+ * @brief compile with "mpicc -g q2.c -o q2"
+ * @version 0.1
+ * @date 2022-07-15
+ * @link https://www.math.tu-cottbus.de/~kd/parallel/mpi/mpi-course.book_133.html
+ * @link http://mpi.deino.net/mpi_functions/MPI_Cart_shift.html
+ *
+ * @copyright Copyright (c) 2022
+ *
+ */
 
 #include <mpi.h>
 #include <math.h>
@@ -33,7 +38,7 @@ void prt_buff(int rank, int size, int* buff, int len);
 void prt_lBuffs(int rank, int size, int* buff, int len);
 void getInput_shift(int rank, int size, int* shift);
 int  get_destRank(int rank, int size, int dir);
-void SHIFT(int rank, int size, int* arr, int len, int shift);
+void SHIFT(int rank, int size, int* arr, int len, int shift, int src, int dest);
 void load_sBuf(int rank, int size, int* arr, int len, int* sbuf, int shift);
 void update_arr(int rank, int size, int* arr, int len, int* rbuf, int shift);
 int get_srcRank(int rank, int size, int shift);
@@ -54,14 +59,14 @@ int main (int argc, char ** argv) {
   MPI_Bcast(&len, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
   arr = (int*) calloc(len, sizeof(int));
-  assert(arr != NULL);
-  memset(arr, 0, len);
+  assert(arr != NULL); memset(arr, 0, len*sizeof(int));
   prt_lBuffs(rank, size, arr, len);
 
   getInput_arrEntries(rank, size, arr, len);
   prt_lBuffs(rank, size, arr, len);
 
   int shift = 0;
+  int src, dest;
   while(1) {
     if(rank == ROOT) {
       getInput_shift(rank, size, &shift);
@@ -73,7 +78,9 @@ int main (int argc, char ** argv) {
     MPI_Bcast(&shift, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
     if(shift!=0) {
-      SHIFT(rank, size, arr, len, shift); // perform circular SHIFT
+      dest = get_destRank(rank, size, shift); // send from this processor
+      src = get_srcRank(rank, size, shift); // recv from this processor
+      SHIFT(rank, size, arr, len, shift, src, dest); // perform circular SHIFT
       if(rank == ROOT) {
         lab = "shift"; prt_var(rank, size, &shift, &lab);
         printf("[%2d/%2d]: local arrays:\n", rank, size); fflush(stdout);
@@ -155,7 +162,7 @@ void prt_buff(int rank, int size, int* buff, int len) {
 void getInput_arr(int rank, int size, int* arr, int len) {
   char* input;
   input = (char*) calloc(10, sizeof(char));
-  assert(input != NULL); memset(input, 0, 10);
+  assert(input != NULL); memset(input, 0, 10*sizeof(char));
   printf("[%2d/%2d]: enter integer entry mode:\n", rank, size); fflush(stdout);
   printf("  - 'rand' for random\n"); fflush(stdout);
   printf("  - 'ord' for ordered\n"); fflush(stdout);
@@ -259,14 +266,12 @@ int get_srcRank(int rank, int size, int shift) {
   return src;
 }
 
-void SHIFT(int rank, int size, int* arr, int len, int shift) {
-  int dest = get_destRank(rank, size, shift);
-  int src = get_srcRank(rank, size, shift);
+void SHIFT(int rank, int size, int* arr, int len, int shift, int src, int dest) {
   int disp = abs(shift);
   int* sbuf = NULL;
-  sbuf = (int*) calloc(disp, sizeof(int));
-  assert(sbuf != NULL); memset(sbuf, 0, disp);
   int* rbuf = NULL;
+  sbuf = (int*) calloc(disp, sizeof(int));
+  assert(sbuf != NULL); memset(sbuf, 0, disp*sizeof(int));
   rbuf = (int*) calloc(disp, sizeof(int));
   assert(rbuf != NULL); memset(rbuf, 0, disp);
 
@@ -279,9 +284,9 @@ void SHIFT(int rank, int size, int* arr, int len, int shift) {
   prt_lBuffs(rank, size, rbuf, disp);  //NBUG
 #endif // NBUG
 
-  if((rank%2) == 0) { // even ranks send
+  if((rank%2) == 0) { // even send
     MPI_Send(sbuf, disp, MPI_INT, dest, 0, MPI_COMM_WORLD);
-  } else { // odd ranks recv
+  } else { // odd recv
     MPI_Recv(rbuf, disp, MPI_INT, src, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   }
 

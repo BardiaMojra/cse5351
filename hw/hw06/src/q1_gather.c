@@ -1,3 +1,14 @@
+/**
+ * @file q1_gather.c
+ * @author Bardia Mojra
+ * @brief compile with "mpicc q1g.c -o q1g"
+ * @version 0.1
+ * @date 2022-07-15
+ *
+ * @copyright Copyright (c) 2022
+ *
+ */
+
 #include <mpi.h>
 #include <assert.h>
 #include <stdio.h>
@@ -8,43 +19,43 @@
 /* config */
 #define ROOT 0
 
-int* create_gBuff(int rank, int size, int* arrLen);
+void getInput_arrLen(int rank, int size, int* arrLen);
 void print_buff(int rank, int size, int* buff, int arrLen);
 void print_lBuffs(int rank, int size, int* buff, int arrLen);
 void print_arrLen(int rank, int size, int arrLen);
-int* create_n_load_lBuffs(int rank, int size, int arrLen);
+int* create_n_load_lBuffs(int rank, int len);
 
 int main(int argc, char *argv[])
 {
   /* init */
   int rank, size;
+  int arrLen;
+  double t1, t2;
+
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  int arrLen = 0;
-  arrLen = rank;
-  double t1, t2;
 
   if ((size != 2) && (size != 4) && (size != 8) && (size != 16)) {
     if (rank == ROOT)
       printf("\n\nUnsupported number of processors: %d\n\n", size);
-    MPI_Finalize();
-    exit(1);
   }
 
   int* gBuff = NULL;
   if (rank == ROOT) {
-    gBuff = create_gBuff(rank, size, &arrLen);
+    getInput_arrLen(rank, size, &arrLen);
+    gBuff = (int*) calloc(arrLen*size, sizeof(int));
+    assert(gBuff != NULL); memset(gBuff, 0, arrLen*size*sizeof(int));
+    printf("[%2d/%2d]: global-address buffer: \n", rank, size);
+    print_buff(rank, size, gBuff, arrLen*size);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Bcast(&arrLen, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-  MPI_Barrier(MPI_COMM_WORLD);
-  /*print_arrLen(rank, size, arrLen);*/
 
   int* lBuff = NULL;
-  lBuff = create_n_load_lBuffs(rank, size, arrLen);
+  lBuff = create_n_load_lBuffs(rank, arrLen);
 
   if(rank == ROOT){
     printf("[%2d/%2d]: global buffer before MPI_Gather()... \n", rank, size);
@@ -65,8 +76,8 @@ int main(int argc, char *argv[])
     printf( "Elapsed time:     %f\n", t2-t1);
     printf("[%2d/%2d]: global buffer after MPI_Gather()... \n", rank, size);
     print_buff(rank, size, gBuff, arrLen*size);
-    printf("[%2d/%2d]: local buffers after MPI_Gather()... \n", rank, size);
     free(gBuff);
+    printf("[%2d/%2d]: local buffers after MPI_Gather()... \n", rank, size);
   }
   print_lBuffs(rank, size, lBuff, arrLen);
   free(lBuff);
@@ -94,15 +105,11 @@ void print_lBuffs(int rank, int size, int* buff, int arrLen) {
   return;
 }
 
-int* create_gBuff(int rank, int size, int* arrLen) {
+void getInput_arrLen(int rank, int size, int* arrLen) {
   printf("[%2d/%2d]: <=> :[rank/size]\n", rank, size);
   printf("[%2d/%2d]: Enter the array length: \n", rank, size);
   scanf("%d", arrLen);
-  int* gBuff = (int*) malloc(sizeof(int)*((*arrLen)*size));
-  assert(gBuff != NULL);
-  memset(gBuff, 0, sizeof(int)*((*arrLen)*size));
-  print_buff(rank, size, gBuff, *arrLen);
-  return gBuff;
+  return;
 }
 
 void print_arrLen(int rank, int size, int arrLen) {
@@ -110,12 +117,11 @@ void print_arrLen(int rank, int size, int arrLen) {
   return;
 }
 
-int* create_n_load_lBuffs(int rank, int size, int len) {
+int* create_n_load_lBuffs(int rank, int len) {
   int* lBuff = NULL;
-  lBuff = (int*) malloc(sizeof(int) * len);
-  assert(lBuff != NULL);
-  memset(lBuff, 0, len*sizeof(int));
-  for (int i=0; i<len; i++) {  //todo check this, shouldnt it be len instead of size?
+  lBuff = (int*) calloc(len, sizeof(int));
+  assert(lBuff != NULL); memset(lBuff, 0, len*sizeof(int));
+  for (int i=0; i<len; i++) {
     lBuff[i] = (rank*len) + i;
   }
   return lBuff;
