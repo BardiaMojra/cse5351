@@ -24,7 +24,7 @@ int get_hiVal(int rank, int size, int n);
 int get_len(int rank, int size, int n);
 void prt_var(int rank, int size, int* var, char** lab);
 void prt_varOrdered(int rank, int size, int* var, char** lab);
-void find_primes(int rank, int size, int n, char* marked);
+void find_primes(int rank, int size, int n, char* marked, int* prime);
 void prt_primesOrdered(int rank, int size, int n, char* marked);
 void prt_primes(int rank, int size, int n, char* marked);
 void get_gCnt(int rank, int size, int len, char* marked, int* cnt, int* gCnt);
@@ -33,6 +33,7 @@ int main (int argc, char ** argv) {
   int rank;
   int size;
   int n; // input number, find primes smaller and equal to n
+  int prime; // working prime
   char* marked; // marked as "not a prime", use char to reduce comm time
   double time; // parallel compute time
   int len; // number of assigned local prime numbers
@@ -54,7 +55,7 @@ int main (int argc, char ** argv) {
   len = get_len(rank, size, n);
   MPI_Barrier(MPI_COMM_WORLD);
 
-  find_primes(rank, size, n, marked); // ------------->> calculate prime numbers
+  find_primes(rank, size, n, marked, &prime); // ----->> calculate prime numbers
   MPI_Barrier(MPI_COMM_WORLD);
 
   int gCnt = 0; // get total count
@@ -139,10 +140,9 @@ void prt_varOrdered(int rank, int size, int* var, char** lab) {
   return;
 }
 
-void find_primes(int rank, int size, int n, char* marked) {
+void find_primes(int rank, int size, int n, char* marked, int* prime) {
   int idx;
-  int cPrime; // current prime
-  int fPrime; // first prime in local array
+  int fPrime; // fPrime prime in local array
   int lo_val = get_loVal(rank, size, n);
   int hi_val = get_hiVal(rank, size, n);
   int len    = get_len(rank, size, n);
@@ -156,28 +156,30 @@ void find_primes(int rank, int size, int n, char* marked) {
 #endif // NBUG
 
   if(rank == ROOT) { idx = 0; /* root finds primes<sqrt(n) n broadcasts */ }
-  cPrime = 2;
-  while(cPrime*cPrime <= n) {
-    if(cPrime*cPrime > lo_val) { /* find the fPrime prime multiple in range */
-      fPrime = cPrime * cPrime - lo_val;
+  prime = 2;
+  do {
+    if (prime * prime > lo_val) {
+      fPrime = prime * prime - lo_val;
     } else {
-      if((lo_val % cPrime) == 0) { // not a prime
+      if ((lo_val % prime) == 0) {
         fPrime = 0;
-      } else {
-        fPrime = cPrime - (lo_val % cPrime); // first prime in local array
       }
-    }
-    for(int i=fPrime; i<len; i+=cPrime) { /* mark prime multiples */
-      marked[i] = 1;
-    }
-    if(rank == ROOT) {
-      while(marked[++idx]);
-      cPrime = idx + 2;
+      else fPrime = prime - (lo_val % prime);
     }
 
-    if(size > 1) { MPI_Bcast(&cPrime, 1, MPI_INT, 0, MPI_COMM_WORLD); }
-    if(rank == ROOT) { lab = "cPrime"; prt_var(rank, size, &cPrime, &lab); }
-  } // end of while(cPrime*cPrime <= n)
+    for (i = fPrime; i<len; i += prime) {
+      marked[i] = 1;
+    }
+
+    if (rank == ROOT) {
+      while (marked[++idx]);
+      prime = idx + 2;
+    }
+
+    if (size > 1) {
+      MPI_Bcast(&prime,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+  } while (prime * prime <= n);
 
   lab = "lo_val"; prt_var(rank, size, &lo_val, &lab); // NBUG
   return;
